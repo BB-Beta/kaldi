@@ -80,6 +80,11 @@ dir=$2
 
 set -e -u  # die on failed command or undefined variable
 
+# remove the error flag that might have been set the previous run
+# just to get the script the chance to finish successfuly when user
+# has fixed the issue reported in the previous run
+[ -f $dir/.error ] && rm $dir/.error
+
 steps/chain2/validate_randomized_egs.sh $egs_dir
 
 for f in $dir/init/info.txt; do
@@ -278,7 +283,6 @@ if [ $stage -le $num_iters ]; then
    $cmd $gpu_cmd_opt $dir/log/combine.log \
       nnet3-chain-combine2 --use-gpu=$use_gpu \
         --leaky-hmm-coefficient=$leaky_hmm_coefficient \
-        --print-interval=10  \
         $den_fst_dir $input_models \
         "ark:nnet3-chain-merge-egs $multilingual_eg_opts  scp:$egs_dir/train_subset.scp ark:-|" \
         $dir/final.raw || exit 1;

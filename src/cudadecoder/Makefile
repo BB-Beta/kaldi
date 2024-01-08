@@ -1,14 +1,16 @@
-all:
-		
+all: ;
+
 EXTRA_CXXFLAGS = -Wno-sign-compare
 include ../kaldi.mk
 
-ifeq ($(CUDA), true)
-ifneq ($(WITH_CUDADECODER), 0)
+ifeq ($(IS_GPU_BUILD), true)
+ifeq ($(WITH_CUDADECODER), true)
 
 # Make sure we have CUDA_ARCH from kaldi.mk,
+ifeq ($(CUDA), true)
 ifndef CUDA_ARCH
   $(error CUDA_ARCH is undefined, run 'src/configure')
+endif
 endif
 
 TESTFILES =
@@ -19,7 +21,7 @@ OBJFILES = cuda-decoder.o cuda-decoder-kernels.o cuda-fst.o \
 	   batched-threaded-nnet3-cuda-pipeline2.o \
 	   batched-static-nnet3.o batched-static-nnet3-kernels.o \
 	   cuda-online-pipeline-dynamic-batcher.o decodable-cumatrix.o \
-	   lattice-postprocessor.o
+	   cuda-pipeline-common.o lattice-postprocessor.o
 
 LIBNAME = kaldi-cudadecoder
 
@@ -34,8 +36,14 @@ LDLIBS += $(CUDA_LDLIBS)
 
 
 # Implicit rule for kernel compilation
+ifeq ($(CUDA), true)
 %.o : %.cu
 	$(CUDATKDIR)/bin/nvcc -c $< -o $@ $(CUDA_INCLUDE) $(CUDA_FLAGS) $(CUDA_ARCH) -I../ -I$(OPENFSTINC)
+endif
+ifeq ($(ROCM), true)
+%.o : %.cu
+	$(HIPCC) -c -x hip $< -o $@ $(ROCM_INCLUDE) $(ROCM_FLAGS) $(ROCM_ARCH_FLAGS) -I../ -I$(OPENFSTINC)
+endif
 
 else
 all:

@@ -29,12 +29,27 @@
 #include "cudamatrix/cu-matrixdim.h" // for CU1DBLOCK and CU2DBLOCK
 #include "matrix/matrix-common.h"
 
-#if HAVE_CUDA == 1
+#if HAVE_CUDA
+
+#ifdef __IS_HIP_COMPILE__
+#include <hip/hip_runtime_api.h>
+#include <hipblas/hipblas.h>
+#include <hiprand/hiprand.h>
+#include <hipsparse/hipsparse.h>
+#include <roctracer/roctx.h>
+
+#include "hipify.h"
+#else
 #include <cublas_v2.h>
 #include <cuda_runtime_api.h>
 #include <curand.h>
 #include <cusparse.h>
 #include <nvToolsExt.h>
+
+#define GPU_WARP_SIZE 32
+#define GPU_MAX_THREADS_PER_BLOCK 1024
+#define GPU_MAX_WARPS_PER_BLOCK (GPU_MAX_THREADS_PER_BLOCK / GPU_WARP_SIZE)
+#endif
 
 #define CU_SAFE_CALL(fun) \
 { \
@@ -48,7 +63,7 @@
 { \
   int32 ret; \
   if ((ret = (fun)) != CUFFT_SUCCESS) { \
-    KALDI_ERR << "cublasResult " << ret << " returned from '" << #fun << "'"; \
+    KALDI_ERR << "cufftResult " << ret << " returned from '" << #fun << "'"; \
   } \
 }
 
@@ -56,7 +71,7 @@
 { \
   int32 ret; \
   if ((ret = (fun)) != 0) { \
-    KALDI_ERR << "cublasStatus_t " << ret << " : \"" << cublasGetStatusString((cublasStatus_t)ret) << "\" returned from '" << #fun << "'"; \
+    KALDI_ERR << "cublasStatus_t " << ret << " : \"" << cublasGetStatusStringK((cublasStatus_t)ret) << "\" returned from '" << #fun << "'"; \
   } \
 }
 
@@ -129,19 +144,18 @@ void GetBlockSizesForSimpleMatrixOperation(int32 num_rows,
                                            dim3 *dimBlock);
 
 /** This is analogous to the CUDA function cudaGetErrorString(). **/
-const char* cublasGetStatusString(cublasStatus_t status);
+const char* cublasGetStatusStringK(cublasStatus_t status);
 
 /** This is analogous to the CUDA function cudaGetErrorString(). **/
 const char* cusparseGetStatusString(cusparseStatus_t status);
 
 /** This is analogous to the CUDA function cudaGetErrorString(). **/
 const char* curandGetStatusString(curandStatus_t status);
-}
 
-#else
-namespace kaldi {
+}  // namespace kaldi
+
+#else  // HAVE CUDA
 #define NVTX_RANGE(name)
-};
 #endif  // HAVE_CUDA
 
 namespace kaldi {
@@ -159,7 +173,6 @@ template<typename Real> class CuTpMatrix;
 template<typename Real> class CuSparseMatrix;
 
 template<typename Real> class CuBlockMatrix; // this has no non-CU counterpart.
-
 
 }  // namespace kaldi
 

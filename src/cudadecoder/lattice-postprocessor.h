@@ -23,7 +23,6 @@
 #include "base/kaldi-common.h"
 #include "base/kaldi-utils.h"
 #include "cudadecoder/cuda-pipeline-common.h"
-#include "cudamatrix/cu-device.h"
 #include "fstext/fstext-lib.h"
 #include "lat/kaldi-lattice.h"
 #include "lat/sausages.h"
@@ -73,12 +72,10 @@ struct LatticePostprocessorConfig {
 
 class LatticePostprocessor {
   const LatticePostprocessorConfig config_;
-  const TransitionModel *tmodel_;
+  const TransitionInformation *tmodel_;
   std::shared_ptr<const WordBoundaryInfo> word_info_;
   BaseFloat decoder_frame_shift_;
-  // Params for align words
-  int32 max_states_;
-  // Params for ScaleLattice
+  // Params for ScaleLattice.
   bool use_lattice_scale_;
   std::vector<std::vector<double> > lattice_scales_;
 
@@ -89,7 +86,7 @@ class LatticePostprocessor {
   bool GetPostprocessedLattice(CompactLattice &clat,
                                CompactLattice *out_clat) const;
 
-  void SetTransitionModel(const TransitionModel *tmodel) { tmodel_ = tmodel; }
+  void SetTransitionInformation(const TransitionInformation *tmodel) { tmodel_ = tmodel; }
 
   void SetWordBoundaryInfo(
       const std::shared_ptr<const WordBoundaryInfo> &word_info) {
@@ -105,6 +102,26 @@ class LatticePostprocessor {
                                                     word_boundary_rxfilename);
   }
 };
+
+void SetResultUsingLattice(
+    CompactLattice &clat, const int result_type,
+    const std::shared_ptr<LatticePostprocessor> &lattice_postprocessor,
+    CudaPipelineResult *result);
+
+// Read lattice postprocessor config, apply it,
+// and assign it to the pipeline
+template <class PIPELINE>
+void LoadAndSetLatticePostprocessor(const std::string &config_filename,
+                                    PIPELINE *cuda_pipeline) {
+  ParseOptions po("");  // No usage, reading from a file
+  LatticePostprocessorConfig pp_config;
+  pp_config.Register(&po);
+  po.ReadConfigFile(config_filename);
+  auto lattice_postprocessor =
+      std::make_shared<LatticePostprocessor>(pp_config);
+  cuda_pipeline->SetLatticePostprocessor(lattice_postprocessor);
+}
+
 }  // namespace cuda_decoder
 }  // namespace kaldi
 

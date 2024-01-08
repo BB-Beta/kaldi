@@ -19,6 +19,7 @@
 #define KALDI_CUDA_DECODER_BATCHED_THREADED_NNET3_CUDA_PIPELINE_H_
 
 #include <atomic>
+#include <memory>
 #include <thread>
 
 #include "cudadecoder/cuda-decoder.h"
@@ -28,6 +29,7 @@
 #include "feat/wave-reader.h"
 #include "lat/determinize-lattice-pruned.h"
 #include "nnet3/nnet-batch-compute.h"
+#include "nnet3/decodable-simple-looped.h"
 #include "online2/online-nnet2-feature-pipeline.h"
 
 // This pipeline is deprecated and will be removed. Please switch to
@@ -364,10 +366,9 @@ class [[deprecated]] BatchedThreadedNnet3CudaPipeline {
 
   BatchedThreadedNnet3CudaPipelineConfig config_;
 
-  CudaFst cuda_fst_;
+  std::unique_ptr<CudaFst> cuda_fst_;
   const TransitionModel *trans_model_;
   const nnet3::AmNnetSimple *am_nnet_;
-  nnet3::DecodableNnetSimpleLoopedInfo *decodable_info_;
   OnlineNnet2FeaturePipelineInfo *feature_info_;
 
   std::mutex tasks_mutex_;         // protects tasks_front_ and
